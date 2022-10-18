@@ -18,19 +18,20 @@ import (
 
 // Client encapsulates all functions and attributes for a DoH client
 type DoHClient struct {
-	Session *httptrace.ClientTrace
+	Session httptrace.ClientTrace
 	URL     url.URL
 }
 
 // New creates a new DoH client
 func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
 	// Select TLS protocols for DoH
-	c := DoHClient{}
+	c := DoHClient{
+		URL: server,
+	}
 	// log.Debugln("dialing doh server")
-	c.Session = &httptrace.ClientTrace{
+	c.Session = httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {},
 	}
-	c.URL = server
 	return c, nil // nil error
 }
 
@@ -50,24 +51,24 @@ func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Dura
 	}
 	dohbytes, err := m.Pack()
 	if err != nil {
-		return []dns.RR{}, 0, err
+		return []dns.RR{}, time.Since(start), err
 	}
 	// convert to base64
 	dohbase64 := base64.StdEncoding.EncodeToString(dohbytes)
 	dohbase64 = strings.TrimSuffix(dohbase64, "=")
 	// and get the response
-	traceCtx := httptrace.WithClientTrace(ctx, c.Session)
+	traceCtx := httptrace.WithClientTrace(ctx, &c.Session)
 
 	dohURL := c.URL.Scheme + "://" + c.URL.Host + c.URL.Path + "?dns=" + dohbase64
 	req, err := http.NewRequestWithContext(traceCtx, http.MethodGet, dohURL, nil)
 	if err != nil {
 		log.Println(err)
-		return []dns.RR{}, 0, err
+		return []dns.RR{}, time.Since(start), err
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println(err)
-		return []dns.RR{}, 0, err
+		return []dns.RR{}, time.Since(start), err
 	}
 	// read the body
 	body, _ := ioutil.ReadAll(res.Body)
