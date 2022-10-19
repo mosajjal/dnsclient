@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"io/ioutil"
-	"log"
 	"strings"
 	"time"
 
@@ -13,16 +12,16 @@ import (
 	"net/url"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/dns/dnsmessage"
 )
 
-// Client encapsulates all functions and attributes for a DoH client
+// DoHClient encapsulates all functions and attributes for a DoH client
 type DoHClient struct {
 	Session httptrace.ClientTrace
 	URL     url.URL
+	req     *http.Request
 }
 
-// New creates a new DoH client
+// NewDoHClient creates a new DoH client
 func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
 	// Select TLS protocols for DoH
 	c := DoHClient{
@@ -32,49 +31,36 @@ func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
 	c.Session = httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {},
 	}
-	return c, nil // nil error
+	var err error
+	c.req, err = http.NewRequest(http.MethodGet, c.URL.String(), nil)
+	return c, err // nil error
 }
 
-// SendQuery performs a DoH query
+// Query performs a DoH query
 func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Duration, error) {
 	// get the time
 	start := time.Now()
-	msgbytes, err := msg.Pack()
-	if err != nil {
-		return []dns.RR{}, 0, err
-	}
-
-	m := dnsmessage.Message{}
-	err = m.Unpack(msgbytes)
-	if err != nil {
-		return []dns.RR{}, 0, err
-	}
-	dohbytes, err := m.Pack()
+	dohbytes, err := msg.Pack()
 	if err != nil {
 		return []dns.RR{}, time.Since(start), err
 	}
 	// convert to base64
 	dohbase64 := base64.StdEncoding.EncodeToString(dohbytes)
 	dohbase64 = strings.TrimSuffix(dohbase64, "=")
-	// and get the response
-	traceCtx := httptrace.WithClientTrace(ctx, &c.Session)
+	q := c.req.URL.Query()
+	q.Set("dns", dohbase64)
+	c.req.URL.RawQuery = q.Encode()
 
-	dohURL := c.URL.Scheme + "://" + c.URL.Host + c.URL.Path + "?dns=" + dohbase64
-	req, err := http.NewRequestWithContext(traceCtx, http.MethodGet, dohURL, nil)
+	c.req = c.req.WithContext(ctx)
+	res, err := http.DefaultClient.Do(c.req)
 	if err != nil {
-		log.Println(err)
 		return []dns.RR{}, time.Since(start), err
 	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Println(err)
-		return []dns.RR{}, time.Since(start), err
-	}
-	// read the body
 	body, _ := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	// read the body
 	// parse body as a dns message
 	var msg2 dns.Msg
 	err = msg2.Unpack(body)
-	// return the message
 	return msg2.Answer, time.Since(start), err
 }

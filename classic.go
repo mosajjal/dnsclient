@@ -15,6 +15,7 @@ type ClassicDNS struct {
 	conn net.Conn
 }
 
+// NewClassicDNS provides a client interface which you can query on
 func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (Client, error) {
 
 	classic := ClassicDNS{}
@@ -48,6 +49,7 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 	return classic, err
 }
 
+// Query takes a dns message and returns a list of resources
 func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
 	fnDone := make(chan bool)
@@ -58,7 +60,7 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 		}
 		var r *dns.Msg
 		r, err = co.ReadMsg()
-		co.Close()
+		// co.Close()
 		if err == nil {
 			if r.Truncated {
 				err = fmt.Errorf("response was truncated. consider using a different protocol (TCP) for large queries")

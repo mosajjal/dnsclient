@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var dnsServer = net.IPv4(1, 1, 1, 1)
+
 func TestTransportPlainUDP(t *testing.T) {
 	msg := dns.Msg{}
 	msg.RecursionDesired = true
@@ -20,7 +22,7 @@ func TestTransportPlainUDP(t *testing.T) {
 	}}
 
 	addr := &net.UDPAddr{
-		IP:   net.IPv4(9, 9, 9, 9),
+		IP:   dnsServer,
 		Port: 53,
 	}
 	c, err := dnsclient.NewClassicDNS(addr, false, false, false)
@@ -28,6 +30,25 @@ func TestTransportPlainUDP(t *testing.T) {
 	reply, _, err := c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
+}
+
+func BenchmarkTransportPlainUDP(b *testing.B) {
+	msg := dns.Msg{}
+	msg.RecursionDesired = true
+	msg.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.StringToType["A"],
+		Qclass: dns.ClassINET,
+	}}
+
+	addr := &net.UDPAddr{
+		IP:   dnsServer,
+		Port: 53,
+	}
+	c, _ := dnsclient.NewClassicDNS(addr, false, false, false)
+	for n := 0; n < b.N; n++ {
+		c.Query(context.Background(), &msg)
+	}
 }
 
 func TestTransportPlainTCP(t *testing.T) {
@@ -40,7 +61,7 @@ func TestTransportPlainTCP(t *testing.T) {
 	}}
 
 	addr := &net.TCPAddr{
-		IP:   net.IPv4(9, 9, 9, 9),
+		IP:   dnsServer,
 		Port: 53,
 	}
 	c, err := dnsclient.NewClassicDNS(addr, true, false, false)
@@ -48,6 +69,25 @@ func TestTransportPlainTCP(t *testing.T) {
 	reply, _, err := c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
+}
+
+func BenchmarkTransportPlainTCP(b *testing.B) {
+	msg := dns.Msg{}
+	msg.RecursionDesired = true
+	msg.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.StringToType["A"],
+		Qclass: dns.ClassINET,
+	}}
+
+	addr := &net.TCPAddr{
+		IP:   dnsServer,
+		Port: 53,
+	}
+	c, _ := dnsclient.NewClassicDNS(addr, true, false, false)
+	for n := 0; n < b.N; n++ {
+		c.Query(context.Background(), &msg)
+	}
 }
 
 func TestTransportTLS(t *testing.T) {
@@ -60,7 +100,7 @@ func TestTransportTLS(t *testing.T) {
 	}}
 
 	addr := &net.TCPAddr{
-		IP:   net.IPv4(9, 9, 9, 9),
+		IP:   dnsServer,
 		Port: 853,
 	}
 	c, err := dnsclient.NewClassicDNS(addr, true, true, true)
@@ -68,4 +108,23 @@ func TestTransportTLS(t *testing.T) {
 	reply, _, err := c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
+}
+
+func BenchmarkTransportTLS(b *testing.B) {
+	msg := dns.Msg{}
+	msg.RecursionDesired = true
+	msg.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.StringToType["A"],
+		Qclass: dns.ClassINET,
+	}}
+
+	addr := &net.TCPAddr{
+		IP:   dnsServer,
+		Port: 853,
+	}
+	c, _ := dnsclient.NewClassicDNS(addr, true, true, true)
+	for n := 0; n < b.N; n++ {
+		c.Query(context.Background(), &msg)
+	}
 }

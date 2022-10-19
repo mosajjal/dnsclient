@@ -25,3 +25,19 @@ func TestTransportDoQ(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
 }
+
+func BenchmarkTransportDoQ(b *testing.B) {
+	msg := dns.Msg{}
+	msg.RecursionDesired = true
+	msg.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.StringToType["A"],
+		Qclass: dns.ClassINET,
+	}}
+
+	u := "dns.adguard.com:8853"
+	c, _ := dnsclient.NewDoQClient(u, false)
+	for n := 0; n < b.N; n++ {
+		c.Query(context.Background(), &msg)
+	}
+}

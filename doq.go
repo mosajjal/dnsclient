@@ -11,13 +11,13 @@ import (
 	"github.com/miekg/dns"
 )
 
-// Client encapsulates all functions and attributes for a DoH client
+// DoQClient encapsulates all functions and attributes for a DoH client
 type DoQClient struct {
 	conn   quic.Connection
 	server string
 }
 
-// New creates a new DoQ client
+// NewDoQClient creates a new DoQ client
 func NewDoQClient(server string, SkipVerify bool) (Client, error) {
 	tlsConfig := tls.Config{
 		InsecureSkipVerify: SkipVerify,
@@ -39,6 +39,7 @@ func NewDoQClient(server string, SkipVerify bool) (Client, error) {
 	return DoQClient{conn: session, server: server}, nil
 }
 
+// Query performs the DNS transaction
 func (c DoQClient) Query(ctx context.Context, msg *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
 	if opt := msg.IsEdns0(); opt != nil {

@@ -27,3 +27,20 @@ func TestTransportDoH(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
 }
+
+func BenchmarkTransportDoH(b *testing.B) {
+	msg := dns.Msg{}
+	msg.RecursionDesired = true
+	msg.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.StringToType["A"],
+		Qclass: dns.ClassINET,
+	}}
+
+	u := "https://cloudflare-dns.com/dns-query"
+	uri, _ := url.Parse(u)
+	c, _ := dnsclient.NewDoHClient(*uri, true)
+	for n := 0; n < b.N; n++ {
+		c.Query(context.Background(), &msg)
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/miekg/dns"
 )
 
+// Client Provides a unified interface for DNS queries
 type Client interface {
 	Query(context.Context, *dns.Msg) ([]dns.RR, time.Duration, error)
 }
@@ -29,31 +30,31 @@ type Client interface {
 // quic://dns.adguard.com:8853
 // tls://dns.adguard.com:853
 func New(uri string, skipVerify bool) (Client, error) {
-	parsedUrl, err := url.Parse(uri)
+	parsedURL, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
 	}
-	switch parsedUrl.Scheme {
+	switch parsedURL.Scheme {
 	case "udp", "udp6":
-		addr, err := net.ResolveUDPAddr(parsedUrl.Scheme, parsedUrl.Host)
+		addr, err := net.ResolveUDPAddr(parsedURL.Scheme, parsedURL.Host)
 		if err != nil {
 			return nil, err
 		}
 		return NewClassicDNS(addr, false, false, skipVerify)
 	case "tcp", "tcp6", "tls", "tls6":
 		useTLS := false
-		if parsedUrl.Scheme == "tls" || parsedUrl.Scheme == "tls6" {
+		if parsedURL.Scheme == "tls" || parsedURL.Scheme == "tls6" {
 			useTLS = true
 		}
-		addr, err := net.ResolveTCPAddr(parsedUrl.Scheme, parsedUrl.Host)
+		addr, err := net.ResolveTCPAddr(parsedURL.Scheme, parsedURL.Host)
 		if err != nil {
 			return nil, err
 		}
 		return NewClassicDNS(addr, true, useTLS, skipVerify)
 	case "https":
-		return NewDoHClient(*parsedUrl, skipVerify)
+		return NewDoHClient(*parsedURL, skipVerify)
 	case "quic":
-		return NewDoQClient(parsedUrl.Host, skipVerify)
+		return NewDoQClient(parsedURL.Host, skipVerify)
 	}
 	return nil, fmt.Errorf("Can't understand the URL")
 }
