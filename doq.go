@@ -93,3 +93,7 @@ func (c DoQClient) Query(ctx context.Context, msg *dns.Msg) (responses []dns.RR,
 
 	return reply.Answer, time.Since(t1), nil
 }
+
+func (c DoQClient) Close() error {
+	return c.conn.CloseWithError(quic.ApplicationErrorCode(2), "")
+}

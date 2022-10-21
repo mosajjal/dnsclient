@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"net/http"
-	"net/http/httptrace"
 	"net/url"
 
 	"github.com/miekg/dns"
@@ -16,9 +15,8 @@ import (
 
 // DoHClient encapsulates all functions and attributes for a DoH client
 type DoHClient struct {
-	Session httptrace.ClientTrace
-	URL     url.URL
-	req     *http.Request
+	URL url.URL
+	req *http.Request
 }
 
 // NewDoHClient creates a new DoH client
@@ -27,10 +25,7 @@ func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
 	c := DoHClient{
 		URL: server,
 	}
-	// log.Debugln("dialing doh server")
-	c.Session = httptrace.ClientTrace{
-		GotConn: func(info httptrace.GotConnInfo) {},
-	}
+
 	var err error
 	c.req, err = http.NewRequest(http.MethodGet, c.URL.String(), nil)
 	return c, err // nil error
@@ -63,4 +58,9 @@ func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Dura
 	var msg2 dns.Msg
 	err = msg2.Unpack(body)
 	return msg2.Answer, time.Since(start), err
+}
+
+func (c DoHClient) Close() error {
+	c.req.Close = true
+	return nil
 }

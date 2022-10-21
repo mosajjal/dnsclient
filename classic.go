@@ -12,21 +12,28 @@ import (
 
 // ClassicDNS provides functionality to create DNS over UDP, DNS over TCP and DNS over TLS
 type ClassicDNS struct {
-	conn net.Conn
+	conn         net.Conn
+	isTCP        bool
+	isTLS        bool
+	isSkipVerify bool
 }
 
 // NewClassicDNS provides a client interface which you can query on
 func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (Client, error) {
 
-	classic := ClassicDNS{}
+	classic := ClassicDNS{
+		isTCP:        UseTCP,
+		isTLS:        UseTLS,
+		isSkipVerify: SkipVerify,
+	}
 	var err error
 
-	if UseTLS && !UseTCP {
+	if classic.isTLS && !classic.isTCP {
 		err = fmt.Errorf("can't use DNS over TLS without TCP")
 		return classic, err
 	}
 
-	if UseTLS {
+	if classic.isTLS {
 		tlsCfg := &tls.Config{
 			InsecureSkipVerify: SkipVerify,
 		}
@@ -34,10 +41,19 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 		return classic, err
 	}
 
-	if UseTCP {
+	if classic.isTCP {
 		var s *net.TCPAddr
 		if s, err = net.ResolveTCPAddr(server.Network(), server.String()); err == nil {
-			classic.conn, err = net.DialTCP(server.Network(), nil, s)
+			var tcpC *net.TCPConn
+			tcpC, err = net.DialTCP(server.Network(), nil, s)
+			if err != nil {
+				return nil, err
+			}
+			err = tcpC.SetKeepAlive(true)
+			if err != nil {
+				return nil, err
+			}
+			classic.conn = tcpC
 		}
 		return classic, err
 	}
@@ -53,6 +69,7 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
 	fnDone := make(chan bool)
+
 	go func() {
 		co := &dns.Conn{Conn: c.conn}
 		if err = co.WriteMsg(q); err != nil {
@@ -60,14 +77,15 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 		}
 		var r *dns.Msg
 		r, err = co.ReadMsg()
+		// TODO: automatic re-connect on EOF
 		// co.Close()
 		if err == nil {
 			if r.Truncated {
-				err = fmt.Errorf("response was truncated. consider using a different protocol (TCP) for large queries")
-			} else if r.Id == q.Id {
-				responses = r.Answer
-			} else {
+				err = fmt.Errorf("response for query %d was truncated. consider using a different protocol (TCP) for large queries", r.Id)
+			} else if r.Id != q.Id {
 				err = fmt.Errorf("%d", r.Id)
+			} else {
+				responses = r.Answer
 			}
 		}
 		fnDone <- true
@@ -83,4 +101,8 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 			return
 		}
 	}
+}
+
+func (c ClassicDNS) Close() error {
+	return c.conn.Close()
 }
