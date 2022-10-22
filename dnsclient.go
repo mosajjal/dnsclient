@@ -70,7 +70,7 @@ func New(uri string, skipVerify bool) (Client, error) {
 		if parsedURL.Scheme == "tls" || parsedURL.Scheme == "tls6" {
 			useTLS = true
 		}
-		addr, err := net.ResolveTCPAddr(parsedURL.Scheme, parsedURL.Host)
+		addr, err := net.ResolveTCPAddr("tcp", parsedURL.Host)
 		if err != nil {
 			return nil, err
 		}

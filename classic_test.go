@@ -17,6 +17,7 @@ func TestTransportPlainUDP(t *testing.T) {
 	msg := dns.Msg{}
 	msg.RecursionDesired = true
 	msg.SetQuestion("example.com.", dns.TypeA)
+	msg.SetEdns0(1300, true)
 
 	addr := &net.UDPAddr{
 		IP:   dnsServer,
@@ -29,10 +30,25 @@ func TestTransportPlainUDP(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
 
-	time.Sleep(120 * time.Second)
 	reply, _, err = c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
 
+	// test larger responses with geller-pa.googleapis.com.
+	msg.SetQuestion("geller-pa.googleapis.com.", dns.TypeA)
+	msg.SetEdns0(1300, true)
+	reply, _, err = c.Query(context.Background(), &msg)
+	assert.Nil(t, err)
+
+	msg.SetQuestion("media-exp1.licdn.com.", dns.TypeA)
+	msg.SetEdns0(1300, true)
+	reply, _, err = c.Query(context.Background(), &msg)
+	assert.Nil(t, err)
+	time.Sleep(50 * time.Second)
+
+	msg.SetQuestion("www-linkedin-com.l-0005.l-msedge.net.", dns.TypeA)
+	msg.SetEdns0(1300, true)
+	reply, _, err = c.Query(context.Background(), &msg)
+	assert.Nil(t, err)
 }
 
 func BenchmarkTransportPlainUDP(b *testing.B) {
@@ -67,7 +83,7 @@ func TestTransportPlainTCP(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
 
-	time.Sleep(120 * time.Second)
+	time.Sleep(50 * time.Second)
 	reply, _, err = c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
 
