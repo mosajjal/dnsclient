@@ -77,13 +77,11 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 		}
 		var r *dns.Msg
 		r, err = co.ReadMsg()
-		// TODO: automatic re-connect on EOF
-		// co.Close()
 		if err == nil {
 			if r.Truncated {
 				err = fmt.Errorf("response for query %d was truncated. consider using a different protocol (TCP) for large queries", r.Id)
 			} else if r.Id != q.Id {
-				err = fmt.Errorf("%d", r.Id)
+				err = fmt.Errorf("query id (%d) and response id (%d) mismatch", q.Id, r.Id)
 			} else {
 				responses = r.Answer
 			}
