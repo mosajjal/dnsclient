@@ -40,6 +40,7 @@ Client Provides a unified interface for DNS queries
 type Client interface {
 	Query(context.Context, *dns.Msg) ([]dns.RR, time.Duration, error)
 	Close() error
+	Reconnect() error
 }
 
 /*

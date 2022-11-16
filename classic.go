@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -30,7 +31,7 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 
 	if classic.isTLS && !classic.isTCP {
 		err = fmt.Errorf("can't use DNS over TLS without TCP")
-		return classic, err
+		return &classic, err
 	}
 
 	if classic.isTLS {
@@ -38,7 +39,7 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 			InsecureSkipVerify: SkipVerify,
 		}
 		classic.conn, err = tls.Dial(server.Network(), server.String(), tlsCfg)
-		return classic, err
+		return &classic, err
 	}
 
 	if classic.isTCP {
@@ -55,18 +56,18 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool) (
 			}
 			classic.conn = tcpC
 		}
-		return classic, err
+		return &classic, err
 	}
 
 	var s *net.UDPAddr
 	if s, err = net.ResolveUDPAddr(server.Network(), server.String()); err == nil {
 		classic.conn, err = net.DialUDP(server.Network(), nil, s)
 	}
-	return classic, err
+	return &classic, err
 }
 
 // Query takes a dns message and returns a list of resources
-func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
+func (c *ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
 	fnDone := make(chan bool)
 
@@ -85,6 +86,10 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 			} else {
 				responses = r.Answer
 			}
+		} else if err == io.EOF {
+			// auto-reconnect on connection failure
+			// NOTE: potentially a chance to make this a configurable item
+			c.Reconnect()
 		}
 		fnDone <- true
 	}()
@@ -101,6 +106,16 @@ func (c ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, 
 	}
 }
 
-func (c ClassicDNS) Close() error {
+// Close closes the DNS Client
+func (c *ClassicDNS) Close() error {
 	return c.conn.Close()
+}
+
+// Reconnect reads the configuration from the running instance, and tries to replace the client
+// with a fresh connection on-the-fly
+func (c *ClassicDNS) Reconnect() error {
+	newClient, err := NewClassicDNS(c.conn.RemoteAddr(), c.isTCP, c.isTLS, c.isSkipVerify)
+	c2 := newClient.(*ClassicDNS)
+	c.conn = c2.conn
+	return err
 }

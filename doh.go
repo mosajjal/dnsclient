@@ -15,8 +15,9 @@ import (
 
 // DoHClient encapsulates all functions and attributes for a DoH client
 type DoHClient struct {
-	URL url.URL
-	req *http.Request
+	URL          url.URL
+	isSkipVerify bool
+	req          *http.Request
 }
 
 // NewDoHClient creates a new DoH client
@@ -25,10 +26,11 @@ func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
 	c := DoHClient{
 		URL: server,
 	}
+	c.isSkipVerify = SkipVerify
 
 	var err error
 	c.req, err = http.NewRequest(http.MethodGet, c.URL.String(), nil)
-	return c, err // nil error
+	return &c, err // nil error
 }
 
 // Query performs a DoH query
@@ -60,7 +62,13 @@ func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Dura
 	return msg2.Answer, time.Since(start), err
 }
 
-func (c DoHClient) Close() error {
+func (c *DoHClient) Close() error {
 	c.req.Close = true
 	return nil
+}
+func (c *DoHClient) Reconnect() error {
+	newClient, err := NewDoHClient(c.URL, c.isSkipVerify)
+	c2 := newClient.(*DoHClient)
+	c.req = c2.req
+	return err
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mosajjal/dnsclient"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/idna"
 )
 
 var dnsServer = net.IPv4(1, 1, 1, 1)
@@ -49,6 +50,7 @@ func TestTransportPlainUDP(t *testing.T) {
 	msg.SetEdns0(1300, true)
 	reply, _, err = c.Query(context.Background(), &msg)
 	assert.Nil(t, err)
+
 }
 
 func BenchmarkTransportPlainUDP(b *testing.B) {
@@ -85,9 +87,19 @@ func TestTransportPlainTCP(t *testing.T) {
 
 	time.Sleep(50 * time.Second)
 	reply, _, err = c.Query(context.Background(), &msg)
-	assert.Nil(t, err)
+	// NOTE: tcp timeout is expected here. after auto-reconnect, it should be back to normal
+	assert.NotNil(t, err)
+	assert.Equal(t, len(reply), 0)
 
+	reply, _, err = c.Query(context.Background(), &msg)
+	assert.Nil(t, err)
 	assert.Greater(t, len(reply), 0)
+
+	punyQ, _ := idna.ToASCII("♨️.net.")
+	msg.SetQuestion(punyQ, dns.TypeA)
+	msg.SetEdns0(1300, true)
+	reply, _, err = c.Query(context.Background(), &msg)
+	assert.Nil(t, err)
 }
 
 func BenchmarkTransportPlainTCP(b *testing.B) {
