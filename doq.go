@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/miekg/dns"
+	"github.com/quic-go/quic-go"
 )
 
 // DoQClient encapsulates all functions and attributes for a DoH client
