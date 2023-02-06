@@ -24,7 +24,7 @@ func TestTransportPlainUDP(t *testing.T) {
 		IP:   dnsServer,
 		Port: 53,
 	}
-	c, err := dnsclient.NewClassicDNS(addr, false, false, false)
+	c, err := dnsclient.NewClassicDNS(addr, false, false, false, "")
 	assert.Nil(t, err)
 	defer c.Close()
 	reply, _, err := c.Query(context.Background(), &msg)
@@ -62,7 +62,7 @@ func BenchmarkTransportPlainUDP(b *testing.B) {
 		IP:   dnsServer,
 		Port: 53,
 	}
-	c, _ := dnsclient.NewClassicDNS(addr, false, false, false)
+	c, _ := dnsclient.NewClassicDNS(addr, false, false, false, "")
 	defer c.Close()
 	for n := 0; n < b.N; n++ {
 		c.Query(context.Background(), &msg)
@@ -78,7 +78,7 @@ func TestTransportPlainTCP(t *testing.T) {
 		IP:   dnsServer,
 		Port: 53,
 	}
-	c, err := dnsclient.NewClassicDNS(addr, true, false, false)
+	c, err := dnsclient.NewClassicDNS(addr, true, false, false, "")
 	assert.Nil(t, err)
 	defer c.Close()
 	reply, _, err := c.Query(context.Background(), &msg)
@@ -111,7 +111,7 @@ func BenchmarkTransportPlainTCP(b *testing.B) {
 		IP:   dnsServer,
 		Port: 53,
 	}
-	c, _ := dnsclient.NewClassicDNS(addr, true, false, false)
+	c, _ := dnsclient.NewClassicDNS(addr, true, false, false, "")
 	defer c.Close()
 	for n := 0; n < b.N; n++ {
 		c.Query(context.Background(), &msg)
@@ -127,7 +127,7 @@ func TestTransportTLS(t *testing.T) {
 		IP:   dnsServer,
 		Port: 853,
 	}
-	c, err := dnsclient.NewClassicDNS(addr, true, true, true)
+	c, err := dnsclient.NewClassicDNS(addr, true, true, true, "")
 	assert.Nil(t, err)
 	defer c.Close()
 	reply, _, err := c.Query(context.Background(), &msg)
@@ -144,7 +144,7 @@ func BenchmarkTransportTLS(b *testing.B) {
 		IP:   dnsServer,
 		Port: 853,
 	}
-	c, _ := dnsclient.NewClassicDNS(addr, true, true, true)
+	c, _ := dnsclient.NewClassicDNS(addr, true, true, true, "")
 	defer c.Close()
 	for n := 0; n < b.N; n++ {
 		c.Query(context.Background(), &msg)

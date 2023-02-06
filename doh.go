@@ -2,8 +2,10 @@ package dnsclient
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"io/ioutil"
+	"net"
 	"strings"
 	"time"
 
@@ -11,24 +13,46 @@ import (
 	"net/url"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/proxy"
 )
 
 // DoHClient encapsulates all functions and attributes for a DoH client
 type DoHClient struct {
 	URL          url.URL
+	proxy        string
+	dialer       proxy.Dialer
 	isSkipVerify bool
 	req          *http.Request
+	httpclient   *http.Client
 }
 
 // NewDoHClient creates a new DoH client
-func NewDoHClient(server url.URL, SkipVerify bool) (Client, error) {
+func NewDoHClient(server url.URL, SkipVerify bool, proxy string) (Client, error) {
 	// Select TLS protocols for DoH
 	c := DoHClient{
-		URL: server,
+		URL:          server,
+		proxy:        proxy,
+		isSkipVerify: SkipVerify,
 	}
-	c.isSkipVerify = SkipVerify
 
+	// get the proxy dialer
 	var err error
+	c.dialer, err = GetDialer(proxy)
+	if err != nil {
+		return nil, err
+	}
+
+	c.httpclient = &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
+				return c.dialer.Dial(network, addr)
+			},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: SkipVerify,
+			},
+		},
+	}
+
 	c.req, err = http.NewRequest(http.MethodGet, c.URL.String(), nil)
 	return &c, err // nil error
 }
@@ -49,7 +73,7 @@ func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Dura
 	c.req.URL.RawQuery = q.Encode()
 
 	c.req = c.req.WithContext(ctx)
-	res, err := http.DefaultClient.Do(c.req)
+	res, err := c.httpclient.Do(c.req)
 	if err != nil {
 		return []dns.RR{}, time.Since(start), err
 	}
@@ -67,7 +91,7 @@ func (c *DoHClient) Close() error {
 	return nil
 }
 func (c *DoHClient) Reconnect() error {
-	newClient, err := NewDoHClient(c.URL, c.isSkipVerify)
+	newClient, err := NewDoHClient(c.URL, c.isSkipVerify, c.proxy)
 	c2 := newClient.(*DoHClient)
 	c.req = c2.req
 	return err

@@ -54,7 +54,7 @@ URI string could look like below:
   - quic://dns.adguard.com:8853
   - tls://dns.adguard.com:853
 */
-func New(uri string, skipVerify bool) (Client, error) {
+func New(uri string, skipVerify bool, proxy string) (Client, error) {
 	parsedURL, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func New(uri string, skipVerify bool) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewClassicDNS(addr, false, false, skipVerify)
+		return NewClassicDNS(addr, false, false, skipVerify, proxy)
 	case "tcp", "tcp6", "tls", "tls6":
 		useTLS := false
 		if parsedURL.Scheme == "tls" || parsedURL.Scheme == "tls6" {
@@ -75,9 +75,9 @@ func New(uri string, skipVerify bool) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewClassicDNS(addr, true, useTLS, skipVerify)
+		return NewClassicDNS(addr, true, useTLS, skipVerify, proxy)
 	case "https":
-		return NewDoHClient(*parsedURL, skipVerify)
+		return NewDoHClient(*parsedURL, skipVerify, proxy)
 	case "quic":
 		return NewDoQClient(parsedURL.Host, skipVerify)
 	}

@@ -17,7 +17,7 @@ func TestTransportDoH(t *testing.T) {
 
 	u := "https://cloudflare-dns.com/dns-query"
 	uri, _ := url.Parse(u)
-	c, err := dnsclient.NewDoHClient(*uri, true)
+	c, err := dnsclient.NewDoHClient(*uri, true, "")
 	assert.Nil(t, err)
 	defer c.Close()
 	reply, _, err := c.Query(context.Background(), &msg)
@@ -32,7 +32,7 @@ func BenchmarkTransportDoH(b *testing.B) {
 
 	u := "https://cloudflare-dns.com/dns-query"
 	uri, _ := url.Parse(u)
-	c, _ := dnsclient.NewDoHClient(*uri, true)
+	c, _ := dnsclient.NewDoHClient(*uri, true, "")
 	defer c.Close()
 	for n := 0; n < b.N; n++ {
 		c.Query(context.Background(), &msg)
