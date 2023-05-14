@@ -7,9 +7,11 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/txthinking/socks5"
 	"golang.org/x/net/proxy"
 )
 
@@ -24,28 +26,35 @@ type ClassicDNS struct {
 }
 
 // NewClassicDNS provides a client interface which you can query on
-func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool, proxy string) (Client, error) {
+func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool, proxyURI string) (Client, error) {
 
 	classic := ClassicDNS{
 		isTCP:        UseTCP,
 		isTLS:        UseTLS,
 		isSkipVerify: SkipVerify,
-		proxy:        proxy,
+		proxy:        proxyURI,
 	}
 	var err error
 
-	// due to the implementation limitation (https://github.com/golang/go/issues/32790)
-	// UDP will not work behind a proxy
-	var s *net.UDPAddr
-	if s, err = net.ResolveUDPAddr(server.Network(), server.String()); err == nil {
-		classic.conn, err = net.DialUDP(server.Network(), nil, s)
-		return &classic, err
-	}
+	if proxyURI != "" {
+		uri, err := url.Parse(proxyURI)
+		if err != nil {
+			return nil, err
+		}
+		if uri.Scheme != "socks5" {
+			return nil, fmt.Errorf("only socks5 proxy is supported")
+		}
 
-	classic.dialer, err = GetDialer(proxy)
-	if err != nil {
-		return &classic, err
+		u := uri.User.Username()
+		p, _ := uri.User.Password()
+		classic.dialer, err = socks5.NewClient(uri.Host, u, p, 60, 60)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		classic.dialer = proxy.Direct
 	}
+	// works for both tcp and udp
 	proxiedConnection, err := classic.dialer.Dial(server.Network(), server.String())
 	if err != nil {
 		return &classic, err
