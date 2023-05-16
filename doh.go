@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 	"net"
-	"strings"
 	"time"
 
 	"net/http"
@@ -66,8 +65,8 @@ func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Dura
 		return []dns.RR{}, time.Since(start), err
 	}
 	// convert to base64
-	dohbase64 := base64.StdEncoding.EncodeToString(dohbytes)
-	dohbase64 = strings.TrimSuffix(dohbase64, "=")
+	dohbase64 := base64.RawStdEncoding.EncodeToString(dohbytes)
+
 	q := c.req.URL.Query()
 	q.Set("dns", dohbase64)
 	c.req.URL.RawQuery = q.Encode()
