@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 	"net"
-	"strings"
 	"time"
 
 	"net/http"
