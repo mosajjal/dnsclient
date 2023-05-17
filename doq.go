@@ -16,6 +16,7 @@ type DoQClient struct {
 	conn         quic.Connection
 	isSkipVerify bool
 	server       string
+	cache        *Cache
 }
 
 // NewDoQClient creates a new DoQ client
@@ -37,12 +38,20 @@ func NewDoQClient(server string, SkipVerify bool) (Client, error) {
 	// Clients and servers MUST NOT send the edns-tcp-keepalive EDNS(0) Option [RFC7828] in any messages sent
 	// on a DoQ connection (because it is specific to the use of TCP/TLS as a transport).
 	// https://datatracker.ietf.org/doc/html/rfc9250#section-5.5.2
-	return &DoQClient{conn: session, server: server, isSkipVerify: SkipVerify}, nil
+	return &DoQClient{conn: session, server: server, isSkipVerify: SkipVerify, cache: InitCache()}, nil
 }
 
 // Query performs the DNS transaction
 func (c DoQClient) Query(ctx context.Context, msg *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
+
+	// check cache
+	if c.cache != nil {
+		if rr, ok := c.cache.Get(msg); ok {
+			return rr, time.Since(t1), nil
+		}
+	}
+
 	if opt := msg.IsEdns0(); opt != nil {
 		for _, option := range opt.Option {
 			if option.Option() == dns.EDNS0TCPKEEPALIVE {

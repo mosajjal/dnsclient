@@ -21,6 +21,7 @@ type ClassicDNS struct {
 	isTCP        bool
 	isTLS        bool
 	isSkipVerify bool
+	cache        *Cache
 }
 
 // NewClassicDNS provides a client interface which you can query on
@@ -31,6 +32,7 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool, p
 		isTLS:        UseTLS,
 		isSkipVerify: SkipVerify,
 		proxy:        proxy,
+		cache:        InitCache(),
 	}
 	var err error
 
@@ -75,6 +77,15 @@ func NewClassicDNS(server net.Addr, UseTCP bool, UseTLS bool, SkipVerify bool, p
 func (c *ClassicDNS) Query(ctx context.Context, q *dns.Msg) (responses []dns.RR, rtt time.Duration, err error) {
 	t1 := time.Now()
 	fnDone := make(chan bool)
+
+	// check cache first
+	if c.cache != nil {
+		if response, ok := c.cache.Get(q); ok {
+			responses = response
+			rtt = time.Since(t1)
+			return
+		}
+	}
 
 	go func() {
 		co := &dns.Conn{Conn: c.conn}

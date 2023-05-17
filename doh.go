@@ -23,6 +23,7 @@ type DoHClient struct {
 	isSkipVerify bool
 	req          *http.Request
 	httpclient   *http.Client
+	cache        *Cache
 }
 
 // NewDoHClient creates a new DoH client
@@ -32,6 +33,7 @@ func NewDoHClient(server url.URL, SkipVerify bool, proxy string) (Client, error)
 		URL:          server,
 		proxy:        proxy,
 		isSkipVerify: SkipVerify,
+		cache:        InitCache(),
 	}
 
 	// get the proxy dialer
@@ -60,6 +62,14 @@ func NewDoHClient(server url.URL, SkipVerify bool, proxy string) (Client, error)
 func (c DoHClient) Query(ctx context.Context, msg *dns.Msg) ([]dns.RR, time.Duration, error) {
 	// get the time
 	start := time.Now()
+
+	// check the cache
+	if c.cache != nil {
+		if rr, ok := c.cache.Get(msg); ok {
+			return rr, time.Since(start), nil
+		}
+	}
+
 	dohbytes, err := msg.Pack()
 	if err != nil {
 		return []dns.RR{}, time.Since(start), err
