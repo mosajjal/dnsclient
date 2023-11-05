@@ -25,7 +25,7 @@ func NewDoQClient(server string, SkipVerify bool) (Client, error) {
 		NextProtos:         []string{"doq"},
 	}
 
-	session, err := quic.DialAddr(server, &tlsConfig, &quic.Config{
+	session, err := quic.DialAddr(context.Background(), server, &tlsConfig, &quic.Config{
 		HandshakeIdleTimeout:    time.Second * 10,
 		DisablePathMTUDiscovery: true,
 	})

@@ -126,6 +126,7 @@ func (c *ClassicDNS) Reconnect() error {
 		return err
 	}
 	c2 := newClient.(*ClassicDNS)
+	c = c2
 	c.conn = c2.conn
 	return nil
 }
